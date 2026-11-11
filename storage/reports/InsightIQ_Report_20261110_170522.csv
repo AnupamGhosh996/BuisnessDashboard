@@ -1,0 +1,29 @@
+InsightIQ Business Intelligence Report
+Title,InsightIQ – Executive Summary Report
+Dataset,sample_sales_dataset.csv
+Generated At,2026-11-10 17:05:22 UTC
+
+--- KEY PERFORMANCE INDICATORS ---
+Metric,Value,Formatted
+Total Revenue,1298652.27,"$1,298,652.27"
+Total Profit,500758.04,"$500,758.04"
+Total Orders,802.0,802
+Average Order Value,1619.27,"$1,619.27"
+Profit Margin,38.56,38.6%
+Active Customers,119.0,119
+
+--- CATEGORY ANALYSIS ---
+Category,Revenue,Profit,Margin %,Orders
+Enterprise Software,269065.77,183682.78,68.3,196
+Hardware,491686.59,130971.9,26.6,241
+Office Equipment,359056.43,110026.15,30.6,122
+Networking,95957.78,42355.57,44.1,77
+Peripherals,82885.7,33721.64,40.7,166
+
+--- REGIONAL ANALYSIS ---
+Region,Revenue,Profit,Orders
+North America,479968.97,181963.82,273
+Europe,354237.72,140597.91,211
+Asia-Pacific,215303.82,83066.99,157
+Latin America,145024.27,54925.75,101
+Middle East,104117.49,40203.57,60

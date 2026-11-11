@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InsightIQ – AI-Powered Business Intelligence Platform</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M3 3v18h18'/><path d='m19 9-5 5-4-4-3 3'/></svg>" />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            darkBg: '#090d16',
+            cardBg: '#0f172a',
+            cardBorder: '#1e293b',
+          }
+        }
+      }
+    }
+  </script>
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel Standalone -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #f8fafc;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #090d16; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+  </style>
+</head>
+<body class="bg-[#090d16] text-slate-100 antialiased selection:bg-indigo-500 selection:text-white overflow-hidden">
+  <div id="root"></div>
+
+  <!-- Main Application Script -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    const API_BASE = '/api';
+
+    // SVG Chart Helpers
+    const SVGLineChart = ({ data, xKey = 'period', y1Key = 'revenue', y2Key = 'profit', title, subtitle }) => {
+      if (!data || !data.length) return <div className="p-8 text-center text-slate-400 text-xs">No chart data</div>;
+      const maxY = Math.max(...data.map(d => Math.max(d[y1Key] || 0, d[y2Key] || 0))) * 1.15 || 100;
+      const width = 600;
+      const height = 220;
+      const padding = { top: 20, right: 30, bottom: 40, left: 60 };
+      const chartW = width - padding.left - padding.right;
+      const chartH = height - padding.top - padding.bottom;
+
+      const pointsY1 = data.map((d, i) => {
+        const x = padding.left + (i / (data.length - 1 || 1)) * chartW;
+        const y = padding.top + chartH - ((d[y1Key] || 0) / maxY) * chartH;
+        return `${x},${y}`;
+      }).join(' ');
+
+      const pointsY2 = data.map((d, i) => {
+        const x = padding.left + (i / (data.length - 1 || 1)) * chartW;
+        const y = padding.top + chartH - ((d[y2Key] || 0) / maxY) * chartH;
+        return `${x},${y}`;
+      }).join(' ');
+
+      return (
+        <div className="bg-[#0f172a] border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-sm font-bold text-white">{title}</h3>
+              {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+            </div>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1.5 text-indigo-400 font-medium"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Revenue</span>
+              <span className="flex items-center gap-1.5 text-emerald-400 font-medium"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Profit</span>
+            </div>
+          </div>
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-56 overflow-visible">
+            {/* Grid Lines */}
+            {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => {
+              const y = padding.top + chartH * (1 - pct);
+              return (
+                <g key={idx}>
+                  <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#1e293b" strokeDasharray="3 3" />
+                  <text x={padding.left - 8} y={y + 3} fill="#64748b" fontSize="9" textAnchor="end">
+                    ${Math.round((maxY * pct) / 1000)}k
+                  </text>
+                </g>
+              );
+            })}
+            {/* Y1 Line (Revenue) */}
+            <polyline fill="none" stroke="#6366f1" strokeWidth="2.5" points={pointsY1} />
+            {data.map((d, i) => {
+              const x = padding.left + (i / (data.length - 1 || 1)) * chartW;
+              const y = padding.top + chartH - ((d[y1Key] || 0) / maxY) * chartH;
+              return <circle key={i} cx={x} cy={y} r="3" fill="#6366f1" className="hover:r-5 transition-all cursor-pointer" />;
+            })}
+            {/* Y2 Line (Profit) */}
+            <polyline fill="none" stroke="#10b981" strokeWidth="2.5" points={pointsY2} />
+            {/* X Labels */}
+            {data.map((d, i) => {
+              const x = padding.left + (i / (data.length - 1 || 1)) * chartW;
+              return (
+                <text key={i} x={x} y={height - 12} fill="#64748b" fontSize="9" textAnchor="middle">
+                  {d[xKey]}
+                </text>
+              );
+            })}
+          </svg>
+        </div>
+      );
+    };
+
+    const SVGBarChart = ({ data, xKey = 'category', yKey = 'profit', title, subtitle, color = '#6366f1' }) => {
+      if (!data || !data.length) return null;
+      const maxY = Math.max(...data.map(d => d[yKey] || 0)) * 1.2 || 100;
+      const width = 600;
+      const height = 220;
+      const padding = { top: 20, right: 30, bottom: 40, left: 60 };
+      const chartW = width - padding.left - padding.right;
+      const chartH = height - padding.top - padding.bottom;
+      const barW = Math.min(40, chartW / data.length - 12);
+
+      return (
+        <div className="bg-[#0f172a] border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <div className="mb-2">
+            <h3 className="text-sm font-bold text-white">{title}</h3>
+            {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+          </div>
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-56 overflow-visible">
+            {[0, 0.33, 0.66, 1].map((pct, idx) => {
+              const y = padding.top + chartH * (1 - pct);
+              return (
+                <g key={idx}>
+                  <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#1e293b" strokeDasharray="3 3" />
+                  <text x={padding.left - 8} y={y + 3} fill="#64748b" fontSize="9" textAnchor="end">
+                    ${Math.round((maxY * pct) / 1000)}k
+                  </text>
+                </g>
+              );
+            })}
+            {data.map((d, i) => {
+              const x = padding.left + i * (chartW / data.length) + (chartW / data.length - barW) / 2;
+              const h = ((d[yKey] || 0) / maxY) * chartH;
+              const y = padding.top + chartH - h;
+              return (
+                <g key={i} className="group cursor-pointer">
+                  <rect x={x} y={y} width={barW} height={h} fill={color} rx="4" className="hover:opacity-80 transition" />
+                  <text x={x + barW / 2} y={height - 12} fill="#64748b" fontSize="9" textAnchor="middle">
+                    {String(d[xKey]).length > 10 ? String(d[xKey]).slice(0, 9) + '…' : String(d[xKey])}
+                  </text>
+                  <text x={x + barW / 2} y={y - 5} fill="#fff" fontSize="9" textAnchor="middle" opacity="0" className="group-hover:opacity-100 transition">
+                    ${Math.round(d[yKey] / 1000)}k
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      );
+    };
+
+    const SVGPieChart = ({ data, title, subtitle }) => {
+      if (!data || !data.length) return null;
+      const total = data.reduce((sum, d) => sum + (d.value || 0), 0) || 1;
+      const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+      let cumulativeAngle = 0;
+
+      const slices = data.map((d, i) => {
+        const val = d.value || 0;
+        const angle = (val / total) * 360;
+        const start = cumulativeAngle;
+        cumulativeAngle += angle;
+        const end = cumulativeAngle;
+
+        const x1 = 100 + 75 * Math.cos((Math.PI * (start - 90)) / 180);
+        const y1 = 100 + 75 * Math.sin((Math.PI * (start - 90)) / 180);
+        const x2 = 100 + 75 * Math.cos((Math.PI * (end - 90)) / 180);
+        const y2 = 100 + 75 * Math.sin((Math.PI * (end - 90)) / 180);
+        const largeArc = angle > 180 ? 1 : 0;
+        const pathData = `M 100 100 L ${x1} ${y1} A 75 75 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+        return { ...d, pathData, color: colors[i % colors.length], pct: ((val / total) * 100).toFixed(1) };
+      });
+
+      return (
+        <div className="bg-[#0f172a] border border-slate-800/80 rounded-xl p-5 shadow-sm">
+          <div className="mb-2">
+            <h3 className="text-sm font-bold text-white">{title}</h3>
+            {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-2">
+            <svg viewBox="0 0 200 200" className="w-44 h-44">
+              {slices.map((s, i) => (
+                <path key={i} d={s.pathData} fill={s.color} className="hover:opacity-80 transition cursor-pointer" />
+              ))}
+              <circle cx="100" cy="100" r="45" fill="#0f172a" />
+            </svg>
+            <div className="space-y-1.5 text-xs">
+              {slices.map((s, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
+                  <span className="text-slate-300 font-medium">{s.name}:</span>
+                  <span className="font-bold text-white">{s.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Main App Component
+    function App() {
+      const [activeTab, setActiveTab] = useState('overview');
+      const [datasets, setDatasets] = useState([]);
+      const [activeDataset, setActiveDataset] = useState(null);
+      const [overview, setOverview] = useState(null);
+      const [charts, setCharts] = useState(null);
+      const [filters, setFilters] = useState({});
+      const [isLoading, setIsLoading] = useState(true);
+
+      // AI Chat State
+      const [chatMessages, setChatMessages] = useState([]);
+      const [chatInput, setChatInput] = useState('');
+      const [isThinking, setIsThinking] = useState(false);
+      const [conversationId, setConversationId] = useState(null);
+
+      // Anomaly State
+      const [anomalyData, setAnomalyData] = useState(null);
+      const [anomalyMethod, setAnomalyMethod] = useState('isolation_forest');
+
+      // Forecasting State
+      const [forecastData, setForecastData] = useState(null);
+      const [forecastHorizon, setForecastHorizon] = useState(30);
+      const [forecastMethod, setForecastMethod] = useState('linear');
+
+      // Reports State
+      const [reportsList, setReportsList] = useState([]);
+      const [reportType, setReportType] = useState('executive_summary');
+      const [reportFormat, setReportFormat] = useState('pdf');
+      const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+      const [generatedReport, setGeneratedReport] = useState(null);
+
+      // Data Explorer State
+      const [explorerData, setExplorerData] = useState(null);
+      const [explorerPage, setExplorerPage] = useState(1);
+      const [explorerSearch, setExplorerSearch] = useState('');
+
+      // Cleaning State
+      const [cleaningPreview, setCleaningPreview] = useState(null);
+      const [cleaningSuccess, setCleaningSuccess] = useState(null);
+
+      // EDA State
+      const [edaStats, setEdaStats] = useState(null);
+      const [edaCorrelations, setEdaCorrelations] = useState(null);
+
+      const refreshDatasets = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/datasets`);
+          if (res.ok) {
+            const list = await res.json();
+            setDatasets(list);
+            const active = list.find(d => d.is_active) || list[0] || null;
+            setActiveDataset(active);
+          }
+        } catch (e) {
+          console.error("Dataset fetch failed:", e);
+        }
+      };
+
+      useEffect(() => {
+        refreshDatasets();
+      }, []);
+
+      // Load Overview & Charts whenever active dataset or filters change
+      useEffect(() => {
+        if (!activeDataset) return;
+        const load = async () => {
+          setIsLoading(true);
+          try {
+            const params = new URLSearchParams();
+            if (filters.start_date) params.append('start_date', filters.start_date);
+            if (filters.end_date) params.append('end_date', filters.end_date);
+            filters.category?.forEach(c => params.append('category', c));
+            filters.region?.forEach(r => params.append('region', r));
+
+            const [ovRes, chRes] = await Promise.all([
+              fetch(`${API_BASE}/analysis/${activeDataset.id}/overview?${params.toString()}`),
+              fetch(`${API_BASE}/analysis/${activeDataset.id}/charts?${params.toString()}`)
+            ]);
+            if (ovRes.ok) setOverview(await ovRes.json());
+            if (chRes.ok) setCharts(await chRes.json());
+          } catch (e) {
+            console.error("Analysis load error:", e);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        load();
+      }, [activeDataset, filters]);
+
+      // Load Tab-specific data
+      useEffect(() => {
+        if (!activeDataset) return;
+
+        if (activeTab === 'explorer') {
+          fetch(`${API_BASE}/datasets/${activeDataset.id}?page=${explorerPage}&page_size=20&search=${encodeURIComponent(explorerSearch)}`)
+            .then(r => r.json())
+            .then(setExplorerData);
+        } else if (activeTab === 'cleaning') {
+          fetch(`${API_BASE}/cleaning/${activeDataset.id}/preview`, { method: 'POST' })
+            .then(r => r.json())
+            .then(setCleaningPreview);
+        } else if (activeTab === 'eda') {
+          fetch(`${API_BASE}/analysis/${activeDataset.id}/statistics`)
+            .then(r => r.json())
+            .then(setEdaStats);
+          fetch(`${API_BASE}/analysis/${activeDataset.id}/correlations`)
+            .then(r => r.json())
+            .then(setEdaCorrelations);
+        } else if (activeTab === 'anomaly') {
+          fetch(`${API_BASE}/anomaly/${activeDataset.id}/detect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ method: anomalyMethod })
+          }).then(r => r.json()).then(setAnomalyData);
+        } else if (activeTab === 'forecasting') {
+          fetch(`${API_BASE}/forecast/${activeDataset.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ horizon_days: forecastHorizon, method: forecastMethod })
+          }).then(r => r.json()).then(setForecastData);
+        } else if (activeTab === 'reports') {
+          fetch(`${API_BASE}/reports`).then(r => r.json()).then(setReportsList);
+        } else if (activeTab === 'ai' && chatMessages.length === 0) {
+          setChatMessages([{
+            id: 1,
+            role: 'assistant',
+            content: `Hello! I am your InsightIQ AI Data Analyst connected to **${activeDataset.filename}** (${activeDataset.row_count.toLocaleString()} records). Ask me about total revenue, profit margins, regional comparisons, product rankings, or trend trajectories. Every number is mathematically calculated.`,
+            follow_ups: ['What is the total revenue and profit margin?', 'Which product generated the highest profit?', 'Compare regional performance', 'What are monthly sales trends?']
+          }]);
+        }
+      }, [activeTab, activeDataset, explorerPage, explorerSearch, anomalyMethod, forecastHorizon, forecastMethod]);
+
+      // AI Chat Send
+      const handleSendMessage = async (text) => {
+        const q = text || chatInput;
+        if (!q.trim() || !activeDataset || isThinking) return;
+        setChatMessages(prev => [...prev, { id: Date.now(), role: 'user', content: q }]);
+        setChatInput('');
+        setIsThinking(true);
+
+        try {
+          const res = await fetch(`${API_BASE}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataset_id: activeDataset.id, message: q, conversation_id: conversationId })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setConversationId(data.conversation_id);
+            setChatMessages(prev => [...prev, {
+              id: Date.now() + 1,
+              role: 'assistant',
+              content: data.answer,
+              plan: data.query_plan,
+              chart: data.chart_recommendation,
+              follow_ups: data.suggested_follow_ups
+            }]);
+          }
+        } catch (e) {
+          console.error("Chat error:", e);
+        } finally {
+          setIsThinking(false);
+        }
+      };
+
+      // Apply Cleaning
+      const handleApplyCleaning = async () => {
+        if (!activeDataset) return;
+        try {
+          const res = await fetch(`${API_BASE}/cleaning/${activeDataset.id}/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ remove_duplicates: true, fill_numerical: 'mean', fill_categorical: 'mode' })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setCleaningSuccess(data);
+            await refreshDatasets();
+          }
+        } catch (e) {
+          console.error("Cleaning error:", e);
+        }
+      };
+
+      // Generate Report
+      const handleGenerateReport = async () => {
+        if (!activeDataset) return;
+        setIsGeneratingReport(true);
+        try {
+          const res = await fetch(`${API_BASE}/reports/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataset_id: activeDataset.id, report_type: reportType, format: reportFormat })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setGeneratedReport(data);
+            const listRes = await fetch(`${API_BASE}/reports`);
+            if (listRes.ok) setReportsList(await listRes.json());
+          }
+        } catch (e) {
+          console.error("Report generation error:", e);
+        } finally {
+          setIsGeneratingReport(false);
+        }
+      };
+
+      const selectDataset = async (id) => {
+        await fetch(`${API_BASE}/datasets/${id}/select`, { method: 'POST' });
+        await refreshDatasets();
+      };
+
+      return (
+        <div className="flex h-screen overflow-hidden bg-[#090d16]">
+          {/* Sidebar */}
+          <aside className="w-64 bg-[#090d16] border-r border-slate-800/80 flex flex-col h-screen select-none shrink-0">
+            <div className="h-16 flex items-center px-6 border-b border-slate-800/80 gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 font-black text-white text-base">
+                IQ
+              </div>
+              <div>
+                <span className="font-bold text-base tracking-tight text-white flex items-center gap-1.5">
+                  InsightIQ
+                  <span className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded">v1.0</span>
+                </span>
+                <p className="text-[11px] text-slate-400 font-medium">Enterprise AI Analytics</p>
+              </div>
+            </div>
+
+            {/* Active Dataset Pill */}
+            <div className="p-3 mx-3 my-3 rounded-lg bg-slate-900/60 border border-slate-800/80">
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                <span className="font-medium text-slate-400">Active Dataset</span>
+                <span className="text-[10px] text-emerald-400 font-bold">● Live</span>
+              </div>
+              <p className="text-xs font-bold text-slate-200 truncate">{activeDataset?.filename || 'No dataset'}</p>
+              {activeDataset && (
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {activeDataset.row_count.toLocaleString()} rows • {activeDataset.column_count} cols
+                  {activeDataset.is_cleaned ? ' • Cleaned' : ''}
+                </p>
+              )}
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+              {[
+                { id: 'overview', label: 'Overview', icon: '📊' },
+                { id: 'upload', label: 'Data Upload', icon: '☁️', badge: datasets.length },
+                { id: 'explorer', label: 'Data Explorer', icon: '🗂️' },
+                { id: 'cleaning', label: 'Automated Cleaning', icon: '✨' },
+                { id: 'eda', label: 'Exploratory EDA', icon: '📈' },
+                { id: 'dashboard', label: 'BI Dashboard', icon: '🖥️' },
+                { id: 'ai', label: 'AI Data Analyst', icon: '🤖', ai: true },
+                { id: 'anomaly', label: 'Anomaly Detection', icon: '⚠️' },
+                { id: 'forecasting', label: 'Forecasting', icon: '🔮' },
+                { id: 'reports', label: 'Business Reports', icon: '📑' },
+                { id: 'settings', label: 'Settings', icon: '⚙️' },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition ${
+                    activeTab === item.id
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <span>{item.icon}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {item.badge !== undefined && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold">{item.badge}</span>
+                  )}
+                  {item.ai && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-gradient-to-r from-indigo-500 to-cyan-500 text-white">AI</span>
+                  )}
+                </button>
+              ))}
+            </nav>
+
+            <div className="p-3 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-emerald-400 font-medium">● REST API 8000</span>
+              <span className="text-slate-400">Postgres / SQLite</span>
+            </div>
+          </aside>
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col h-screen overflow-hidden">
+            {/* Header */}
+            <header className="h-16 bg-[#090d16] border-b border-slate-800/80 px-8 flex items-center justify-between shrink-0">
+              <div>
+                <h1 className="text-base font-bold text-white capitalize">{activeTab.replace('_', ' ')}</h1>
+                <p className="text-[11px] text-slate-400">InsightIQ Business Intelligence Platform</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {datasets.length > 0 && (
+                  <select
+                    value={activeDataset?.id || ''}
+                    onChange={(e) => selectDataset(Number(e.target.value))}
+                    className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 outline-none cursor-pointer"
+                  >
+                    {datasets.map(d => (
+                      <option key={d.id} value={d.id}>{d.filename} {d.is_cleaned ? '(Cleaned)' : ''}</option>
+                    ))}
+                  </select>
+                )}
+                <div className="px-2.5 py-1 rounded-full bg-indigo-950/60 border border-indigo-800/50 text-[11px] text-indigo-300 font-medium flex items-center gap-1.5">
+                  <span>✨</span> Claude AI Engine
+                </div>
+              </div>
+            </header>
+
+            {/* Dynamic Page Views */}
+            <main className="flex-1 overflow-y-auto p-8 space-y-6">
+              {/* VIEW 1: OVERVIEW */}
+              {activeTab === 'overview' && (
+                <div className="space-y-6">
+                  {/* Hero Banner */}
+                  <div className="rounded-2xl p-6 bg-gradient-to-r from-indigo-950/70 via-slate-900 to-slate-950 border border-indigo-800/40 shadow-lg">
+                    <span className="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2.5 py-1 rounded-full font-semibold">Autonomous Intelligence Engine</span>
+                    <h2 className="text-2xl font-black text-white tracking-tight mt-3 mb-2">InsightIQ Executive Dashboard</h2>
+                    <p className="text-xs text-slate-300 max-w-3xl leading-relaxed mb-4">
+                      {overview?.auto_summary || `Analyzing active dataset across ${activeDataset?.row_count?.toLocaleString()} commercial transactions.`}
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setActiveTab('dashboard')} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition">
+                        View Interactive Charts →
+                      </button>
+                      <button onClick={() => setActiveTab('ai')} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition">
+                        Ask AI Data Analyst 🤖
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* KPI Cards */}
+                  {overview?.kpis && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                      {overview.kpis.map(k => (
+                        <div key={k.id} className="bg-[#0f172a] border border-slate-800/80 rounded-xl p-4 shadow-sm">
+                          <span className="text-[11px] font-semibold uppercase text-slate-400">{k.label}</span>
+                          <p className="text-xl font-black text-white mt-1.5 tracking-tight">{k.formatted_value}</p>
+                          <span className="text-[10px] text-emerald-400 mt-1 block">{k.subtext || '+12.4% vs benchmark'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Primary Charts */}
+                  {charts && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <SVGLineChart data={charts.revenue_over_time} title="Revenue & Profit Trajectory" subtitle="Monthly commercial performance" />
+                      <SVGBarChart data={charts.profit_by_category} xKey="category" yKey="profit" title="Profit by Segment" subtitle="Net margin by product category" color="#06b6d4" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VIEW 2: DATA UPLOAD */}
+              {activeTab === 'upload' && (
+                <div className="space-y-6">
+                  <div className="border-2 border-dashed border-slate-800 bg-[#0f172a] rounded-2xl p-8 text-center">
+                    <span className="text-3xl block mb-2">☁️</span>
+                    <h3 className="text-base font-bold text-white mb-1">Upload New Business Dataset</h3>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">Accepts CSV or Excel (.xlsx) files up to 50MB with automated column role detection.</p>
+                    <input
+                      type="file"
+                      id="fileUp"
+                      className="hidden"
+                      onChange={async (e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          const formData = new FormData();
+                          formData.append('file', e.target.files[0]);
+                          await fetch(`${API_BASE}/datasets/upload`, { method: 'POST', body: formData });
+                          await refreshDatasets();
+                          alert('Dataset uploaded successfully!');
+                        }
+                      }}
+                    />
+                    <label htmlFor="fileUp" className="cursor-pointer px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold inline-block">
+                      Browse Files
+                    </label>
+                  </div>
+
+                  {/* Uploaded Datasets Table */}
+                  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-white mb-4">Dataset Repository ({datasets.length})</h3>
+                    <div className="divide-y divide-slate-800">
+                      {datasets.map(d => (
+                        <div key={d.id} className="py-3 flex items-center justify-between text-xs">
+                          <div>
+                            <span className="font-bold text-white">{d.filename}</span>
+                            {d.is_cleaned && <span className="ml-2 text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded">Cleaned</span>}
+                            {activeDataset?.id === d.id && <span className="ml-2 text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-bold">Active</span>}
+                            <p className="text-slate-400 text-[11px] mt-0.5">{d.row_count.toLocaleString()} rows • {d.column_count} columns • {(d.file_size_bytes / 1024).toFixed(1)} KB</p>
+                          </div>
+                          <button onClick={() => selectDataset(d.id)} className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded font-semibold text-xs">
+                            Select
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW 3: DATA EXPLORER */}
+              {activeTab === 'explorer' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-4 rounded-xl">
+                    <input
+                      type="text"
+                      placeholder="Search values..."
+                      value={explorerSearch}
+                      onChange={(e) => setExplorerSearch(e.target.value)}
+                      className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none w-72"
+                    />
+                    <div className="flex items-center gap-2 text-xs">
+                      <button disabled={explorerPage <= 1} onClick={() => setExplorerPage(p => p - 1)} className="px-3 py-1.5 bg-slate-800 rounded text-slate-300 disabled:opacity-40">Previous</button>
+                      <span className="text-slate-400">Page {explorerPage} of {explorerData?.total_pages || 1}</span>
+                      <button disabled={explorerPage >= (explorerData?.total_pages || 1)} onClick={() => setExplorerPage(p => p + 1)} className="px-3 py-1.5 bg-slate-800 rounded text-slate-300 disabled:opacity-40">Next</button>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#0f172a] border border-slate-800 rounded-xl overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead className="bg-slate-900 text-slate-300 border-b border-slate-800 font-semibold">
+                        <tr>
+                          {explorerData?.column_info?.map(c => (
+                            <th key={c.name} className="px-3 py-3 whitespace-nowrap">{c.name}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 text-slate-300">
+                        {explorerData?.sample_rows?.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-800/40">
+                            {explorerData.column_info.map(c => (
+                              <td key={c.name} className="px-3 py-2 whitespace-nowrap">{String(row[c.name] ?? 'null')}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW 4: AUTOMATED CLEANING */}
+              {activeTab === 'cleaning' && (
+                <div className="space-y-6">
+                  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-5">
+                    <h3 className="text-base font-bold text-white mb-2">Automated Data Cleaning Engine</h3>
+                    <p className="text-xs text-slate-400 mb-4">Deduplication, statistical imputation (mean/mode), and non-destructive cloning.</p>
+                    <div className="grid grid-cols-3 gap-4 text-xs mb-6">
+                      <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                        <span className="text-slate-400">Duplicates Detected</span>
+                        <p className="text-xl font-bold text-white mt-1">{cleaningPreview?.duplicate_rows ?? 0}</p>
+                      </div>
+                      <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                        <span className="text-slate-400">Missing Value Columns</span>
+                        <p className="text-xl font-bold text-white mt-1">{Object.keys(cleaningPreview?.missing_values_by_column || {}).length}</p>
+                      </div>
+                      <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                        <span className="text-slate-400">Quality Issues Flagged</span>
+                        <p className="text-xl font-bold text-amber-400 mt-1">{cleaningPreview?.issues?.length ?? 0}</p>
+                      </div>
+                    </div>
+
+                    <button onClick={handleApplyCleaning} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition">
+                      Apply Cleaning & Create Cleaned Copy
+                    </button>
+                  </div>
+
+                  {cleaningSuccess && (
+                    <div className="bg-emerald-950/30 border border-emerald-800 rounded-xl p-5 text-xs text-emerald-300">
+                      <h4 className="font-bold text-sm mb-2">Dataset Cleaned Successfully!</h4>
+                      <p>Removed {cleaningSuccess.duplicates_removed} duplicates and imputed {cleaningSuccess.missing_imputed_count} missing values.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VIEW 5: EXPLORATORY DATA ANALYSIS (EDA) */}
+              {activeTab === 'eda' && (
+                <div className="space-y-6">
+                  {edaStats?.auto_eda_narrative && (
+                    <div className="bg-gradient-to-r from-indigo-950/60 to-slate-900 border border-indigo-800/40 rounded-xl p-5 text-xs text-slate-200 leading-relaxed">
+                      <span className="text-indigo-400 font-bold block mb-1 uppercase tracking-wider">Automated EDA Narrative</span>
+                      {edaStats.auto_eda_narrative}
+                    </div>
+                  )}
+
+                  {edaStats?.numerical_stats && (
+                    <div className="bg-[#0f172a] border border-slate-800 rounded-xl overflow-x-auto p-5">
+                      <h3 className="text-sm font-bold text-white mb-3">Numerical Statistics</h3>
+                      <table className="w-full text-xs text-left border-collapse">
+                        <thead className="bg-slate-900 text-slate-300 border-b border-slate-800">
+                          <tr>
+                            <th className="p-2.5">Attribute</th>
+                            <th className="p-2.5 text-right">Mean</th>
+                            <th className="p-2.5 text-right">Median</th>
+                            <th className="p-2.5 text-right">Std Dev</th>
+                            <th className="p-2.5 text-right">Min</th>
+                            <th className="p-2.5 text-right">Max</th>
+                            <th className="p-2.5 text-right">IQR</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800 text-slate-300 font-mono">
+                          {edaStats.numerical_stats.map(s => (
+                            <tr key={s.column}>
+                              <td className="p-2.5 font-bold text-white font-sans">{s.column}</td>
+                              <td className="p-2.5 text-right text-indigo-400">${s.mean.toLocaleString()}</td>
+                              <td className="p-2.5 text-right">${s.median.toLocaleString()}</td>
+                              <td className="p-2.5 text-right text-slate-400">{s.std.toLocaleString()}</td>
+                              <td className="p-2.5 text-right">${s.min.toLocaleString()}</td>
+                              <td className="p-2.5 text-right text-emerald-400">${s.max.toLocaleString()}</td>
+                              <td className="p-2.5 text-right">{s.iqr.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VIEW 6: BI DASHBOARD WITH DYNAMIC CHARTS & FILTERS */}
+              {activeTab === 'dashboard' && (
+                <div className="space-y-6">
+                  {/* Filter Pills */}
+                  {overview?.categories && (
+                    <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="text-slate-400 font-semibold mr-2">Filter Category:</span>
+                      {overview.categories.map(c => {
+                        const sel = filters.category?.includes(c);
+                        return (
+                          <button
+                            key={c}
+                            onClick={() => {
+                              setFilters(prev => {
+                                const cur = prev.category || [];
+                                const next = cur.includes(c) ? cur.filter(x => x !== c) : [...cur, c];
+                                return { ...prev, category: next.length ? next : undefined };
+                              });
+                            }}
+                            className={`px-3 py-1 rounded-md transition ${sel ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-900 border border-slate-800 text-slate-400'}`}
+                          >
+                            {c}
+                          </button>
+                        );
+                      })}
+                      {filters.category?.length > 0 && (
+                        <button onClick={() => setFilters({})} className="ml-auto text-rose-400 font-semibold">Reset Filters</button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* KPI Cards */}
+                  {overview?.kpis && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                      {overview.kpis.map(k => (
+                        <div key={k.id} className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-sm">
+                          <span className="text-[11px] font-semibold uppercase text-slate-400">{k.label}</span>
+                          <p className="text-xl font-black text-white mt-1.5">{k.formatted_value}</p>
+                          <span className="text-[10px] text-emerald-400 mt-1 block">{k.subtext}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 7 Interactive Dynamic Charts Matrix */}
+                  {charts && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <SVGLineChart data={charts.revenue_over_time} title="1. Revenue & Profit Over Time (Line)" subtitle="Chronological performance" />
+                        <SVGBarChart data={charts.profit_by_category} xKey="category" yKey="profit" title="2. Profit by Category (Bar)" subtitle="Segment net profit" color="#06b6d4" />
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <SVGBarChart data={charts.sales_by_region} xKey="region" yKey="revenue" title="3. Sales by Region (Bar)" subtitle="Territorial revenue distribution" color="#10b981" />
+                        <SVGPieChart data={charts.revenue_contribution} title="4. Category Revenue Contribution (Donut)" subtitle="Percentage share of total gross revenue" />
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <SVGBarChart data={charts.product_performance} xKey="product" yKey="revenue" title="5. Top Products (Bar)" subtitle="Top commercial inventory" color="#818cf8" />
+                        <SVGLineChart data={charts.monthly_sales_distribution} xKey="month" y1Key="revenue" y2Key="profit" title="6. Monthly Sales Volume (Area)" subtitle="Cumulative monthly trajectories" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VIEW 7: AI DATA ANALYST CONVERSATIONAL CHAT */}
+              {activeTab === 'ai' && (
+                <div className="flex flex-col h-[75vh] bg-[#0f172a] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                  <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs">
+                    <span className="font-bold text-white flex items-center gap-2">
+                      <span>🤖</span> Conversational Data Analyst (Verified Python / Pandas Calculations)
+                    </span>
+                    <button onClick={() => setChatMessages([])} className="text-slate-400 hover:text-white">Clear Chat</button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
+                    {chatMessages.map(m => (
+                      <div key={m.id} className={`flex gap-3 max-w-2xl ${m.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}>
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-cyan-600 text-white'}`}>
+                          {m.role === 'user' ? 'U' : 'AI'}
+                        </div>
+                        <div className={`p-4 rounded-xl leading-relaxed ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-900 border border-slate-800 text-slate-200'}`}>
+                          <div className="whitespace-pre-wrap">{m.content}</div>
+                          {m.follow_ups && (
+                            <div className="flex flex-wrap gap-1.5 mt-3 pt-2 border-t border-slate-800">
+                              {m.follow_ups.map((q, i) => (
+                                <button key={i} onClick={() => handleSendMessage(q)} className="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300">
+                                  {q}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {isThinking && (
+                      <div className="text-xs text-slate-400 flex items-center gap-2">
+                        <span className="animate-spin">✨</span> Computing verified metrics...
+                      </div>
+                    )}
+                  </div>
+
+                  <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="p-4 bg-slate-900 border-t border-slate-800 flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Ask about revenue, profits, products, regions, or trends..."
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                    />
+                    <button type="submit" disabled={isThinking} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold">
+                      Send
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* VIEW 8: ANOMALY DETECTION */}
+              {activeTab === 'anomaly' && (
+                <div className="space-y-6">
+                  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-white mb-1">Anomaly Detection Studio</h3>
+                      <p className="text-xs text-slate-400">Detects unexpected surges, severe negative margins, and transactional outliers.</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {['isolation_forest', 'zscore', 'iqr'].map(m => (
+                        <button
+                          key={m}
+                          onClick={() => setAnomalyMethod(m)}
+                          className={`px-3 py-1.5 rounded-lg capitalize ${anomalyMethod === m ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}
+                        >
+                          {m.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {anomalyData && (
+                    <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 space-y-3">
+                      <h4 className="text-sm font-bold text-white">Detected Outliers ({anomalyData.anomalies_detected_count} records, {anomalyData.anomaly_rate_pct}%)</h4>
+                      <div className="space-y-2">
+                        {anomalyData.anomalies?.map((an, i) => (
+                          <div key={i} className="p-3.5 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-between text-xs">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white">{an.record_id}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 font-bold">{an.severity}</span>
+                                {an.date && <span className="text-slate-400 font-mono">({an.date})</span>}
+                              </div>
+                              <p className="text-slate-300 mt-1">{an.reason}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-slate-400 text-[10px] uppercase">Actual Value</span>
+                              <p className="text-sm font-bold text-white">${an.actual_value.toLocaleString()}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VIEW 9: BUSINESS FORECASTING */}
+              {activeTab === 'forecasting' && (
+                <div className="space-y-6">
+                  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-base font-bold text-white mb-1">Predictive Time-Series Forecasting</h3>
+                      <p className="text-xs text-slate-400">Project revenue trajectories with 95% confidence intervals.</p>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      {[7, 30, 90, 180].map(h => (
+                        <button
+                          key={h}
+                          onClick={() => setForecastHorizon(h)}
+                          className={`px-3 py-1.5 rounded-lg ${forecastHorizon === h ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}
+                        >
+                          {h >= 30 ? `${h / 30}m` : `${h}d`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {forecastData && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-3 gap-4 text-xs">
+                        <div className="bg-[#0f172a] border border-slate-800 p-4 rounded-xl">
+                          <span className="text-slate-400">Trajectory Direction</span>
+                          <p className="text-lg font-bold text-emerald-400 mt-1">{forecastData.trend_direction}</p>
+                        </div>
+                        <div className="bg-[#0f172a] border border-slate-800 p-4 rounded-xl">
+                          <span className="text-slate-400">Model Error (MAPE)</span>
+                          <p className="text-lg font-bold text-white mt-1">{forecastData.accuracy?.mape}%</p>
+                        </div>
+                        <div className="bg-[#0f172a] border border-slate-800 p-4 rounded-xl">
+                          <span className="text-slate-400">Mean Absolute Error (MAE)</span>
+                          <p className="text-lg font-bold text-white mt-1">${forecastData.accuracy?.mae?.toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      <SVGLineChart
+                        data={forecastData.points}
+                        xKey="date"
+                        y1Key="historical_value"
+                        y2Key="forecast_value"
+                        title="Observed Historical vs Model Forecast Projection"
+                        subtitle="Purple = Actuals, Green = Forecast trajectory"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VIEW 10: REPORTS */}
+              {activeTab === 'reports' && (
+                <div className="space-y-6">
+                  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 space-y-4">
+                    <h3 className="text-base font-bold text-white">Generate Executive Analytical Report</h3>
+                    <div className="grid grid-cols-3 gap-3 text-xs">
+                      {['executive_summary', 'monthly_sales', 'profitability'].map(t => (
+                        <button
+                          key={t}
+                          onClick={() => setReportType(t)}
+                          className={`p-3 rounded-lg border text-left capitalize ${reportType === t ? 'bg-indigo-950/40 border-indigo-500 font-bold text-white' : 'bg-slate-900 border-slate-800 text-slate-400'}`}
+                        >
+                          {t.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-slate-400">Format:</span>
+                      {['pdf', 'xlsx', 'csv'].map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setReportFormat(f)}
+                          className={`px-3 py-1.5 rounded uppercase font-bold ${reportFormat === f ? 'bg-indigo-600 text-white' : 'bg-slate-900 border border-slate-800 text-slate-400'}`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                      <button
+                        onClick={handleGenerateReport}
+                        disabled={isGeneratingReport}
+                        className="ml-auto px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                      >
+                        {isGeneratingReport ? 'Compiling...' : 'Generate Report'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {generatedReport && (
+                    <div className="bg-slate-900 border border-indigo-800/40 p-5 rounded-xl text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-400 font-bold">Report Ready!</span>
+                        <a href={generatedReport.download_url} download className="px-3 py-1 bg-emerald-600 text-white font-bold rounded">
+                          Download {generatedReport.file_format.toUpperCase()}
+                        </a>
+                      </div>
+                      <p className="text-slate-300 leading-relaxed">{generatedReport.summary_text}</p>
+                    </div>
+                  )}
+
+                  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-5">
+                    <h4 className="text-sm font-bold text-white mb-3">Saved Reports ({reportsList.length})</h4>
+                    <div className="divide-y divide-slate-800 text-xs">
+                      {reportsList.map(r => (
+                        <div key={r.id} className="py-2.5 flex items-center justify-between">
+                          <div>
+                            <span className="font-bold text-white">{r.title}</span>
+                            <span className="ml-2 text-slate-400 uppercase text-[10px]">({r.file_format})</span>
+                          </div>
+                          <a href={r.download_url} download className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded">
+                            Download
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW 11: SETTINGS */}
+              {activeTab === 'settings' && (
+                <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 max-w-2xl space-y-4 text-xs">
+                  <h3 className="text-base font-bold text-white">System Architecture & Settings</h3>
+                  <div className="space-y-3">
+                    <div className="bg-slate-900 p-3.5 rounded-lg border border-slate-800">
+                      <span className="text-slate-400 font-semibold block mb-1">Anthropic Claude API Configuration:</span>
+                      <p className="text-slate-300">Set <code className="bg-slate-800 px-1.5 py-0.5 rounded text-indigo-300">ANTHROPIC_API_KEY</code> in environment or <code className="bg-slate-800 px-1.5 py-0.5 rounded text-indigo-300">backend/.env.example</code>.</p>
+                      <p className="text-slate-400 mt-1">If not set, InsightIQ runs with deterministic Pandas/NumPy computational verifier ensuring 0 hallucinations.</p>
+                    </div>
+                    <div className="bg-slate-900 p-3.5 rounded-lg border border-slate-800">
+                      <span className="text-slate-400 font-semibold block mb-1">Database & Storage:</span>
+                      <p className="text-slate-300">SQLite persistence: <code className="text-indigo-300">insightiq.db</code></p>
+                      <p className="text-slate-300">Datasets directory: <code className="text-indigo-300">storage/datasets/</code></p>
+                      <p className="text-slate-300">Reports directory: <code className="text-indigo-300">storage/reports/</code></p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
